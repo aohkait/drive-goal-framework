@@ -1,9 +1,9 @@
-import ValuesCardSort from './ValuesComplete';
+import ValuesComplete from './ValuesComplete';
 
 function App() {
   return (
     <div>
-      <ValuesCardSort />
+      <ValuesComplete />
     </div>
   );
 }

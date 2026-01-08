@@ -11,120 +11,122 @@ const VALUES_LIST = [
 
 function ValuesCardSort() {
   // STATE: This is where we store which category each value is in
-  // COMPONENT: A single value card
-  const ValueCard = ({ value, showButtons = true }) => (
-    <div
-      draggable
-      onDragStart={(e) => handleDragStart(e, value)}
-      onDragEnd={handleDragEnd}
-      onClick={(e) => {
-        if (e.target.closest && e.target.closest('button')) return;
-        setSelectedValue(prev => prev === value ? null : value);
-      }}
-      style={{
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        flexWrap: 'wrap',
-        padding: '10px 12px',
-        margin: '8px',
-        backgroundColor: '#f0f0f0',
-        borderRadius: '8px',
-        border: selectedValue === value ? '2px solid #0479da' : '2px solid #ddd',
-        cursor: 'grab',
-        userSelect: 'none',
-        touchAction: 'manipulation',
-        transition: 'transform 0.12s ease, box-shadow 0.12s ease',
-        position: 'relative'
-      }}>
-      <div style={{ fontWeight: 'bold', marginRight: '12px', flex: '1 1 auto', minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{value}</div>
-      {showButtons && (
-        <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexShrink: 0 }}>
-          <button
-            onClick={() => moveValue(value, 'essential')}
-            aria-label={`Mark ${value} essential`}
-            style={{
-              padding: '6px 8px',
-              fontSize: '12px',
-              backgroundColor: '#0936d6',
-              color: 'white',
-              border: 'none',
-              borderRadius: '6px',
-              cursor: 'pointer',
-              minWidth: '56px'
-            }}
-          >
-            E
-          </button>
-          <button
-            onClick={() => moveValue(value, 'important')}
-            aria-label={`Mark ${value} important`}
-            style={{
-              padding: '6px 8px',
-              fontSize: '12px',
-              backgroundColor: '#0479da',
-              color: 'white',
-              border: 'none',
-              borderRadius: '6px',
-              cursor: 'pointer',
-              minWidth: '56px'
-            }}
-          >
-            I
-          </button>
-          <button
-            onClick={() => moveValue(value, 'notPriority')}
-            aria-label={`Mark ${value} not priority`}
-            style={{
-              padding: '6px 8px',
-              fontSize: '12px',
-              backgroundColor: '#989898',
-              color: 'white',
-              border: 'none',
-              borderRadius: '6px',
-              cursor: 'pointer',
-              minWidth: '56px'
-            }}
-          >
-            N
-          </button>
-        </div>
-      )}
-    </div>
-  );
+  const [essential, setEssential] = useState([]);
+  const [important, setImportant] = useState([]);
+  const [notPriority, setNotPriority] = useState([]);
+  const [unsorted, setUnsorted] = useState([...VALUES_LIST]);
+  const [showInstructions, setShowInstructions] = useState(false);
+  const [draggedValue, setDraggedValue] = useState(null);
+  const [selectedValue, setSelectedValue] = useState(null);
 
-  // COMPONENT: A category column
-  const Category = ({ title, values, color, categoryKey }) => (
-    <div
-      onDragOver={handleDragOver}
-      onDragEnter={handleDragEnter}
-      onDragLeave={handleDragLeave}
-      onDrop={(e) => handleDrop(e, categoryKey)}
-      onClick={() => {
-        if (selectedValue) {
-          moveValue(selectedValue, categoryKey);
-          setSelectedValue(null);
-        }
-      }}
-      style={{
-        flex: 1,
-        minWidth: '250px',
-        padding: '16px',
-        backgroundColor: '#fff',
-        borderRadius: '8px',
-        border: `3px solid ${color}`,
-        margin: '8px'
-      }}>
-      <h3 style={{ color: color, marginTop: 0 }}>
-        {title} ({values.length})
-      </h3>
-      <div>
-        {values.map(value => (
-          <ValueCard key={value} value={value} showButtons={false} />
-        ))}
-      </div>
-    </div>
-  );
+  // Allow canceling a selection with Escape
+  React.useEffect(() => {
+    const onKey = (e) => {
+      if (e.key === 'Escape') setSelectedValue(null);
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, []);
+
+
+  // FUNCTION: Move a value to a category
+  const moveValue = (value, toCategory) => {
+    // Remove the value from all lists (use functional updates to avoid stale closures)
+    setEssential(prev => prev.filter(v => v !== value));
+    setImportant(prev => prev.filter(v => v !== value));
+    setNotPriority(prev => prev.filter(v => v !== value));
+    setUnsorted(prev => prev.filter(v => v !== value));
+
+    // Add to the chosen category (also using functional updates)
+    if (toCategory === 'essential') {
+      setEssential(prev => [...prev.filter(v => v !== value), value]);
+    } else if (toCategory === 'important') {
+      setImportant(prev => [...prev.filter(v => v !== value), value]);
+    } else if (toCategory === 'notPriority') {
+      setNotPriority(prev => [...prev.filter(v => v !== value), value]);
+    } else if (toCategory === 'unsorted') {
+      setUnsorted(prev => [...prev.filter(v => v !== value), value]);
+    }
+  };
+
+  const resetAll = () => {
+    setEssential([]);
+    setImportant([]);
+    setNotPriority([]);
+    setUnsorted([...VALUES_LIST]);
+    setShowInstructions(false);
+  };
+
+  // DRAG & DROP HANDLERS
+  
+  // When user starts dragging a card
+  const handleDragStart = (e, value) => {
+    setDraggedValue(value);
+    e.dataTransfer.effectAllowed = 'move';
+    try {
+      e.dataTransfer.setData('text/plain', value);
+    } catch (err) {
+      // some browsers may throw on setData for custom types
+    }
+
+    // Create a nicer drag image to make dragging feel natural
+    const dragImage = e.currentTarget.cloneNode(true);
+    dragImage.style.boxShadow = '0 8px 20px rgba(0,0,0,0.18)';
+    dragImage.style.transform = 'scale(1.02)';
+    dragImage.style.position = 'absolute';
+    dragImage.style.top = '-9999px';
+    document.body.appendChild(dragImage);
+    try {
+      e.dataTransfer.setDragImage(dragImage, 20, 20);
+    } catch (err) {
+      // ignore if browser doesn't support setDragImage
+    }
+    // remove the temporary drag image on next tick
+    setTimeout(() => {
+      if (dragImage && dragImage.parentNode) dragImage.parentNode.removeChild(dragImage);
+    }, 0);
+
+    // Make the card slightly transparent while dragging and change cursor
+    e.currentTarget.style.opacity = '0.5';
+    e.currentTarget.style.cursor = 'grabbing';
+  };
+
+  // When dragging ends
+  const handleDragEnd = (e) => {
+    e.currentTarget.style.opacity = '1';
+    e.currentTarget.style.cursor = 'grab';
+    setDraggedValue(null);
+  };
+
+  // When dragging over a drop zone (category)
+  const handleDragOver = (e) => {
+    e.preventDefault(); // This is required to allow dropping
+    e.dataTransfer.dropEffect = 'move';
+  };
+
+  // When entering a drop zone
+  const handleDragEnter = (e) => {
+    e.preventDefault();
+    e.currentTarget.style.backgroundColor = '#f0f7ff';
+    e.currentTarget.style.transform = 'scale(1.02)';
+    e.currentTarget.style.transition = 'transform 0.12s ease, background-color 0.12s ease';
+  };
+
+  // When leaving a drop zone
+  const handleDragLeave = (e) => {
+    e.currentTarget.style.backgroundColor = '';
+    e.currentTarget.style.transform = '';
+  };
+
+  // When dropping in a category
+  const handleDrop = (e, category) => {
+    e.preventDefault();
+    e.currentTarget.style.backgroundColor = '';
+    
+    if (draggedValue) {
+      moveValue(draggedValue, category);
+    }
+  };
 
   // COMPONENT: A single value card
   const ValueCard = ({ value, showButtons = true }) => (
