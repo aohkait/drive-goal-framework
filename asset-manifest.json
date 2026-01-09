@@ -1,15 +1,15 @@
 {
   "files": {
-    "main.css": "/aohkait/drive-goal-framework/static/css/main.e6c13ad2.css",
-    "main.js": "/aohkait/drive-goal-framework/static/js/main.0a415994.js",
-    "static/js/453.81b47630.chunk.js": "/aohkait/drive-goal-framework/static/js/453.81b47630.chunk.js",
-    "index.html": "/aohkait/drive-goal-framework/index.html",
-    "main.e6c13ad2.css.map": "/aohkait/drive-goal-framework/static/css/main.e6c13ad2.css.map",
-    "main.0a415994.js.map": "/aohkait/drive-goal-framework/static/js/main.0a415994.js.map",
-    "453.81b47630.chunk.js.map": "/aohkait/drive-goal-framework/static/js/453.81b47630.chunk.js.map"
+    "main.css": "/drive-goal-framework/static/css/main.e6c13ad2.css",
+    "main.js": "/drive-goal-framework/static/js/main.a62e1400.js",
+    "static/js/453.81b47630.chunk.js": "/drive-goal-framework/static/js/453.81b47630.chunk.js",
+    "index.html": "/drive-goal-framework/index.html",
+    "main.e6c13ad2.css.map": "/drive-goal-framework/static/css/main.e6c13ad2.css.map",
+    "main.a62e1400.js.map": "/drive-goal-framework/static/js/main.a62e1400.js.map",
+    "453.81b47630.chunk.js.map": "/drive-goal-framework/static/js/453.81b47630.chunk.js.map"
   },
   "entrypoints": [
     "static/css/main.e6c13ad2.css",
-    "static/js/main.0a415994.js"
+    "static/js/main.a62e1400.js"
   ]
 }
