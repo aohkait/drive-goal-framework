@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 
 const VALUES_LIST = [  'Achievement', 'Adventure', 'Authenticity', 'Balance', 'Compassion',
   'Creativity', 'Curiosity', 'Family', 'Finances', 'Freedom', 'Friendship',
@@ -8,9 +8,10 @@ const VALUES_LIST = [  'Achievement', 'Adventure', 'Authenticity', 'Balance', 'C
   'Service', 'Simplicity','Spirituality', 'Stability', 'Success', 'Tradition',
   'Variety', 'Wellness', 'Wisdom'
 ];
-function ValuesComplete() {
 
-  React.useEffect(() => {
+function ValuesComplete() {
+    
+  React.useEffect(() => {    
     const onKey = (e) => {
       if (e.key === 'Escape') setSelectedValue(null);
     };
@@ -28,9 +29,59 @@ function ValuesComplete() {
     const [top10, setTop10] = useState([]);
     const [top5, setTop5] = useState([]);
     const [valueExplanations, setValueExplanations] = useState({});
+    const [valueDefinitions, setValueDefinitions] = useState({});
   
-    const [draggedValue, setDraggedValue] = useState(null);
     const [selectedValue, setSelectedValue] = useState(null);
+
+    const STORAGE_KEY = 'drive_values_v1';
+
+    // Load saved state on mount
+    useEffect(() => {
+      try {
+        if (typeof window === 'undefined') return;
+        const raw = localStorage.getItem(STORAGE_KEY);
+        if (!raw) return;
+        const data = JSON.parse(raw);
+        if (!data) return;
+        if (Array.isArray(data.essential)) setEssential(data.essential);
+        if (Array.isArray(data.important)) setImportant(data.important);
+        if (Array.isArray(data.notPriority)) setNotPriority(data.notPriority);
+        if (Array.isArray(data.unsorted)) setUnsorted(data.unsorted);
+        if (Array.isArray(data.top10)) setTop10(data.top10);
+        if (Array.isArray(data.top5)) setTop5(data.top5);
+        if (data.valueExplanations && typeof data.valueExplanations === 'object') setValueExplanations(data.valueExplanations);
+        if (data.valueDefinitions && typeof data.valueDefinitions === 'object') setValueDefinitions(data.valueDefinitions);
+        if (typeof data.step === 'number') setStep(data.step);
+      } catch (err) {
+        console.warn('Failed to load saved values:', err);
+      }
+    }, []);
+
+    // Persist state (debounced)
+    useEffect(() => {
+      if (typeof window === 'undefined') return;
+      const payload = {
+        version: 1,
+        step,
+        essential,
+        important,
+        notPriority,
+        unsorted,
+        top10,
+        top5,
+        valueExplanations,
+        valueDefinitions
+      };
+      const id = setTimeout(() => {
+        try {
+          localStorage.setItem(STORAGE_KEY, JSON.stringify(payload));
+        } catch (err) {
+          console.warn('Failed to save values:', err);
+        }
+      }, 250);
+
+      return () => clearTimeout(id);
+    }, [step, essential, important, notPriority, unsorted, top10, top5, valueExplanations, valueDefinitions]);
 
     // STEP 1 Functions
   const moveValue = (value, toCategory) => {
@@ -62,34 +113,32 @@ function ValuesComplete() {
         setTop10([]);
         setTop5([]);
         setValueExplanations({});
+        setValueDefinitions({});
         setStep(1);
+      try { localStorage.removeItem(STORAGE_KEY); } catch (_) {}
     };
 
     // STEP 2 Functions
-    const toggleTop10 = (value) => {
-        if (top10.includes(value)) {
-        setTop10(top10.filter(v => v !== value));
-        } else {
-        if (top10.length < 10) {
-            setTop10([...top10, value]);
-        } else {
-            alert('You can only select 10 values.');
-        }
-        }
-    };
+  const toggleTop10 = (value) => {
+    if (top10.includes(value)) {
+      setTop10(top10.filter(v => v !== value));
+    } else if (top10.length < 10) {
+      setTop10([...top10, value]);
+    } else {
+      alert('You can only select 10 values.');
+    }
+  };
 
     // STEP 3 Functions
-    const toggleTop5 = (value) => {
-        if (top5.includes(value)) {
-        setTop5(top5.filter(v => v !== value));
-        } else {
-        if (top5.length < 5) {
-            setTop5([...top5, value]);
-        } else {
-            alert('You can only select 5 values.');
-        }
-        }
-    };
+  const toggleTop5 = (value) => {
+    if (top5.includes(value)) {
+      setTop5(top5.filter(v => v !== value));
+    } else if (top5.length < 5) {
+      setTop5([...top5, value]);
+    } else {
+      alert('You can only select 5 values.');
+    }
+  };
 
     // STEP 4 Functions
     const updateExplanation = (value, explanation) => {
@@ -97,95 +146,32 @@ function ValuesComplete() {
         ...valueExplanations,
         [value]: explanation
         });
-    }
-
-    // Drag & Drop Handlers
-      // When user starts dragging a card
-  const handleDragStart = (e, value) => {
-    setDraggedValue(value);
-    e.dataTransfer.effectAllowed = 'move';
-    try {
-      e.dataTransfer.setData('text/plain', value);
-    } catch (err) {
-      // some browsers may throw on setData for custom types
-    }
-
-    // Create a nicer drag image to make dragging feel natural
-    const dragImage = e.currentTarget.cloneNode(true);
-    dragImage.style.boxShadow = '0 8px 20px rgba(0,0,0,0.18)';
-    dragImage.style.transform = 'scale(1.02)';
-    dragImage.style.position = 'absolute';
-    dragImage.style.top = '-9999px';
-    document.body.appendChild(dragImage);
-    try {
-      e.dataTransfer.setDragImage(dragImage, 20, 20);
-    } catch (err) {
-      // ignore if browser doesn't support setDragImage
-    }
-    // remove the temporary drag image on next tick
-    setTimeout(() => {
-      if (dragImage && dragImage.parentNode) dragImage.parentNode.removeChild(dragImage);
-    }, 0);
-
-    // Make the card slightly transparent while dragging and change cursor
-    e.currentTarget.style.opacity = '0.5';
-    e.currentTarget.style.cursor = 'grabbing';
-  };
-
-  // When dragging ends
-  const handleDragEnd = (e) => {
-    e.currentTarget.style.opacity = '1';
-    e.currentTarget.style.cursor = 'grab';
-    setDraggedValue(null);
-  };
-
-  // When dragging over a drop zone (category)
-  const handleDragOver = (e) => {
-    e.preventDefault(); // This is required to allow dropping
-    e.dataTransfer.dropEffect = 'move';
-  };
-
-  // When entering a drop zone
-  const handleDragEnter = (e) => {
-    e.preventDefault();
-    e.currentTarget.style.backgroundColor = '#f0f7ff';
-    e.currentTarget.style.transform = 'scale(1.02)';
-    e.currentTarget.style.transition = 'transform 0.12s ease, background-color 0.12s ease';
-  };
-
-  // When leaving a drop zone
-  const handleDragLeave = (e) => {
-    e.currentTarget.style.backgroundColor = '';
-    e.currentTarget.style.transform = '';
-  };
-
-  // When dropping in a category
-  const handleDrop = (e, category) => {
-    e.preventDefault();
-    e.currentTarget.style.backgroundColor = '';
-    
-    if (draggedValue) {
-      moveValue(draggedValue, category);
-    }
-  };
-
+    };
+        const updateDefinitions = (value, definition) => {
+        setValueDefinitions({
+        ...valueDefinitions,
+        [value]: definition
+        });
+    };
   // COMPONENTS
   const ValueCard = ({ value, showButtons = true, miniButtons = false }) => (
-    <div 
-      //draggable 
-      onDragStart={(e) => handleDragStart(e, value)}
-      onDragEnd={handleDragEnd}
-      onClick={(e) => {
+    <div onClick={(e) => {
+        if (step === 1){
         if (e.target.closest && e.target.closest('button')) return;
         setSelectedValue(prev => prev === value ? null : value);
+        } else if (step === 2){
+            toggleTop10(value);
+        } else if (step === 3){
+            toggleTop5(value);
+        }
       }}
 
       style={{
         padding: '12px',
         margin: '8px',
-        backgroundColor: '#f0f0f0',
+        backgroundColor: top5.includes(value) ? '#63aef5ff' : top10.includes(value) ? '#abd0f3ff' : '#fff',
         borderRadius: '8px',
-        border: selectedValue === value ? '2px solid #0479da' : '2px solid #ddd',
+        border: selectedValue === value ? '2px solid #7ab6e7ff' : '2px solid #ddd',
         cursor: 'pointer',
         userSelect: 'none',
         touchAction: 'manipulation',
@@ -251,12 +237,7 @@ function ValuesComplete() {
   });
 
     const Category = ({ title, values, color, categoryKey }) => (
-    <div 
-      onDragOver={handleDragOver}
-      onDragEnter={handleDragEnter}
-      onDragLeave={handleDragLeave}
-      onDrop={(e) => handleDrop(e, categoryKey)}
-      onClick={() => {
+    <div onClick={() => {
         if (selectedValue) {
           moveValue(selectedValue, categoryKey);
           setSelectedValue(null);
@@ -286,18 +267,13 @@ function ValuesComplete() {
   const renderStep1 = () => (
     <>
         {unsorted.length > 0 && (
-            <div
-                onDragOver={handleDragOver}
-                onDragEnter={handleDragEnter}
-                onDragLeave={handleDragLeave}
-                onDrop={(e) => handleDrop(e, 'unsorted')}
-                style={{
-                    padding: '20px',
-                    backgroundColor: '#fff',
-                    borderRadius: '12px',
-                    marginBottom: '24px',
-                    border: '3px dashed #9E9E9E',
-                    boxShadow: '0 2px 8px rgba(0,0,0,0.1)'
+            <div style={{
+                padding: '20px',
+                backgroundColor: '#fff',
+                borderRadius: '12px',
+                marginBottom: '24px',
+                border: '3px dashed #9E9E9E',
+                boxShadow: '0 2px 8px rgba(0,0,0,0.1)'
                 }}
             >
           <h2 style={{ marginTop: 0 }}>Values to Sort ({unsorted.length} remaining)</h2>
@@ -349,7 +325,28 @@ function ValuesComplete() {
 
 
       {unsorted.length === 0 && essential.length > 0 && (
+        
         <div style={{ textAlign: 'center', marginTop: '24px' }}>
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '16px', marginBottom: '24px', cursor: 'pointer'}}>
+        <Category
+          title="Essential to Me"
+          values={essential}
+          color="#0936d6ff"
+          categoryKey="essential"
+        />
+        <Category
+          title="Important to Me"
+          values={important}
+          color="#0479daff"
+          categoryKey="important"
+        />
+        <Category
+          title="Not Priority Right Now"
+          values={notPriority}
+          color="#989898ff"
+          categoryKey="notPriority"
+        />
+      </div>
           <button
             onClick={() => {
               setTop10([]);
@@ -367,7 +364,7 @@ function ValuesComplete() {
               boxShadow: '0 4px 8px rgba(0,0,0,0.2)'
             }}
           >
-            Continue to Narrow Down (Essential: {essential.length} values)
+            Continue to Choose Top 10 Values
           </button>
         </div>
       )}
@@ -375,7 +372,7 @@ function ValuesComplete() {
   );
 
   const renderStep2 = () => (
-    <div style={{ maxWidth: '900px', margin: '0 auto' }}>
+  <div style={{ maxWidth: '900px', margin: '0 auto' }}>
       <div style={{
         backgroundColor: '#fff',
         padding: '24px',
@@ -403,13 +400,13 @@ function ValuesComplete() {
             key={value}
             value={value}
             selected={top10.includes(value)}
-            onClick={() => toggleTop10(value)}
-          />
+            showButtons={false}
+        />
         ))}
       </div>
 
       <div style={{ display: 'flex', gap: '16px', justifyContent: 'center' }}>
-        <button onClick={() => setStep(1)} style={navButtonStyle('#9E9E9E')}>
+        <button onClick={() => setStep(1), setTop10([])} style={navButtonStyle('#9E9E9E')}>
           ← Back to Sorting
         </button>
         {top10.length === 10 && (
@@ -456,13 +453,13 @@ function ValuesComplete() {
             key={value}
             value={value}
             selected={top5.includes(value)}
-            onClick={() => toggleTop5(value)}
-          />
+            showButtons={false}
+        />
         ))}
       </div>
 
       <div style={{ display: 'flex', gap: '16px', justifyContent: 'center' }}>
-        <button onClick={() => setStep(2)} style={navButtonStyle('#9E9E9E')}>
+        <button onClick={() => setStep(2), , setTop5([])} style={navButtonStyle('#9E9E9E')}>
           ← Back to Top 10
         </button>
         {top5.length === 5 && (
@@ -483,11 +480,12 @@ function ValuesComplete() {
         marginBottom: '24px',
         boxShadow: '0 2px 8px rgba(0,0,0,0.1)'
       }}>
-        <h2 style={{ marginTop: 0, color: '#FF9800' }}>
+        <h2 style={{ marginTop: 0, color: '#0015ffff' }}>
           Why These Values Matter to You
         </h2>
         <p style={{ color: '#666' }}>
-          For each of your top 5 values, explain why it's important to you. 
+          For each of your top 5 values, define what the value means to you, 
+          and then explain why it's in your top 5. 
           This deepens your understanding and will guide your goal-setting.
         </p>
       </div>
@@ -503,18 +501,20 @@ function ValuesComplete() {
             boxShadow: '0 2px 8px rgba(0,0,0,0.1)'
           }}
         >
-          <h3 style={{ marginTop: 0, color: '#FF9800' }}>
+          <h3 style={{ marginTop: 0, color: '#2b00ffff' }}>
             {index + 1}. {value}
           </h3>
-          <label style={{ display: 'block', marginBottom: '8px', color: '#666', fontSize: '14px' }}>
-            Why does this value matter to you?
+          <div style={{ display: 'flex', gap: '16px', marginBottom: '16px' }}>
+            <div style={{ flex: 1 }}>
+            <label style={{ marginBottom: '8px', color: '#666', fontSize: '14px' }}>
+            What does this value mean to you?
           </label>
           <textarea
-            value={valueExplanations[value] || ''}
-            onChange={(e) => updateExplanation(value, e.target.value)}
-            placeholder="Example: Family matters to me because spending time with loved ones brings me joy and grounds me in what's truly important..."
+            value={valueDefinitions[value] || ''}
+            onChange={(e) => updateDefinitions(value, e.target.value)}
+            placeholder="Example: Family means spending quality time with loved ones..."
             style={{
-              width: '100%',
+              width: '90%',
               minHeight: '100px',
               padding: '12px',
               borderRadius: '8px',
@@ -523,9 +523,29 @@ function ValuesComplete() {
               fontFamily: 'inherit',
               resize: 'vertical'
             }}
-          />
+          /></div>
+          <div style={{ flex: 1 }}>
+          <label style={{ marginBottom: '8px', color: '#666', fontSize: '14px' }}>
+            Why does this value matter to you?
+          </label>
+          <textarea
+            value={valueExplanations[value] || ''}
+            onChange={(e) => updateExplanation(value, e.target.value)}
+            placeholder="Example: Family matters to me because spending time with loved ones brings me joy and grounds me in what's truly important..."
+            style={{
+              width: '90%',
+              minHeight: '100px',
+              padding: '12px',
+              borderRadius: '8px',
+              border: '2px solid #e0e0e0',
+              fontSize: '14px',
+              fontFamily: 'inherit',
+              resize: 'vertical'
+            }}
+          /></div>
+          </div>
         </div>
-      ))}
+        ))}
 
       <div style={{ display: 'flex', gap: '16px', justifyContent: 'center', marginTop: '24px' }}>
         <button onClick={() => setStep(3)} style={navButtonStyle('#9E9E9E')}>
